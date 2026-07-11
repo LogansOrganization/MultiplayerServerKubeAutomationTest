@@ -6,7 +6,7 @@ on:
       - dev
 
 env:
-  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/unity-server
+  IMAGE_NAME: ghcr.io/logansorganization/unity-server
 
 jobs:
 
