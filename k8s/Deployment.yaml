@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: unity-server
+  labels:
+    app: unity-server
+
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: unity-server
+
+  template:
+    metadata:
+      labels:
+        app: unity-server
+
+    spec:
+      containers:
+        - name: unity-server
+          image: ghcr.io/YOUR_GHCR_IMAGE/unity-server:latest
+
+          ports:
+            - containerPort: 7777
+              protocol: UDP
+
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+
+            limits:
+              cpu: "2"
+              memory: "2Gi"
+
+          env:
+            - name: SERVER_PORT
+              value: "7777"

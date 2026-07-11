@@ -54,10 +54,11 @@ jobs:
         run: |
           kubectl apply -f k8s/
 
-      - name: Restart Deployment
+      - name: Update Deployment Image
         run: |
-          kubectl rollout restart deployment unity-server
+          kubectl set image deployment/unity-server \
+            unity-server=$IMAGE_NAME:${{ github.sha }}
 
       - name: Wait For Rollout
         run: |
-          kubectl rollout status deployment unity-server
+          kubectl rollout status deployment/unity-server
