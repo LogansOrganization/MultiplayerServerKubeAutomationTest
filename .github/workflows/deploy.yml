@@ -49,6 +49,7 @@ jobs:
             --env UNITY_SERIAL \
             --env SKIP_ACTIVATION=false \
             --env UNITY_VERSION=6000.3.18f1 \
+            --env GITHUB_WORKSPACE=/github/workspace \
             --env PROJECT_PATH=. \
             --env BUILD_TARGET=StandaloneLinux64 \
             --env BUILD_NAME=StandaloneLinux64 \
