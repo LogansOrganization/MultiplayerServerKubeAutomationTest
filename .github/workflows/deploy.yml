@@ -37,6 +37,10 @@ jobs:
           echo "UNITY_SERIAL=$SERIAL" >> "$GITHUB_ENV"
           rm -f /tmp/unity_license.ulf
 
+      - name: Clean stale Unity Library cache
+        run: |
+          rm -rf Library Temp Logs Logs.meta obj
+
       - name: Build Unity Server
         env:
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
