@@ -39,7 +39,8 @@ jobs:
 
       - name: Clean stale Unity Library cache
         run: |
-          rm -rf Library Temp Logs Logs.meta obj
+          git clean -ffdx
+          git reset --hard HEAD
 
       - name: Build Unity Server
         env:

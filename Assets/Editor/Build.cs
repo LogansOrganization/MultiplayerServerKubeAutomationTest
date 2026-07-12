@@ -1,13 +1,10 @@
 using UnityEditor;
-using UnityEditor.SceneManagement;
 using UnityEditor.Build.Reporting;
 
 public static class Build
 {
     public static void Server()
     {
-        EditorSceneManager.OpenScene("Assets/Scenes/SampleScene.unity");
-
         BuildPlayerOptions options = new BuildPlayerOptions
         {
             scenes = new[] { "Assets/Scenes/SampleScene.unity" },
