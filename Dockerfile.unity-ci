@@ -8,7 +8,6 @@ RUN apt-get update && \
     ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
-# Bake in game-ci's build scripts so no runtime file-mounting is needed
 RUN git clone --depth=1 --branch v4 https://github.com/game-ci/unity-builder.git /gameci && \
     cp -rf /gameci/dist/platforms/ubuntu/steps /steps && \
     cp -rf /gameci/dist/default-build-script /UnityBuilderAction && \
@@ -16,9 +15,7 @@ RUN git clone --depth=1 --branch v4 https://github.com/game-ci/unity-builder.git
     chmod +x /entrypoint.sh && \
     rm -rf /gameci
 
-# Node.js required by the GitHub Actions runner environment
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
-    apt-get install -y nodejs && \
-    npm install -g npm@latest
+    apt-get install -y nodejs
 
 ENTRYPOINT ["/entrypoint.sh"]
