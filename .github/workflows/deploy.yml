@@ -55,9 +55,9 @@ jobs:
             --env BUILD_NAME=StandaloneLinux64 \
             --env BUILD_PATH=buildServer/StandaloneLinux64 \
             --env BUILD_FILE=StandaloneLinux64 \
+            --env BUILD_METHOD=CIBuilderAction.ServerBuilder.BuildProject \
             --env MANUAL_EXIT=false \
             --env ENABLE_GPU=false \
-            --env CUSTOM_PARAMETERS="-activeBuildProfile Assets/Settings/BuildProfiles/LinuxServer.asset" \
             --volume "${{ github.workspace }}:/github/workspace" \
             unity-ci-custom:6000.3.18f1
 
