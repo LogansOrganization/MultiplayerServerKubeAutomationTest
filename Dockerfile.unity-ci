@@ -11,7 +11,8 @@ RUN apt-get update && \
 RUN git clone --depth=1 --branch v4 https://github.com/game-ci/unity-builder.git /gameci && \
     cp -rf /gameci/dist/platforms/ubuntu/steps /steps && \
     cp -rf /gameci/dist/default-build-script /UnityBuilderAction && \
-    cp -rf /gameci/dist/unity-config /usr/share/unity3d/config && \
+    mkdir -p /usr/share/unity3d/config && \
+    cp -rf /gameci/dist/unity-config/. /usr/share/unity3d/config/ && \
     cp -rf /gameci/dist/BlankProject /BlankProject && \
     cp /gameci/dist/platforms/ubuntu/entrypoint.sh /entrypoint.sh && \
     chmod +x /entrypoint.sh && \
