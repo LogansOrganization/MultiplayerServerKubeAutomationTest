@@ -26,17 +26,27 @@ jobs:
         run: |
           docker build -t unity-ci-custom:6000.3.18f1 -f Dockerfile.unity-ci .
 
+      - name: Extract Unity Serial from License
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+        run: |
+          echo "$UNITY_LICENSE" > /tmp/unity_license.ulf
+          B64=$(grep -oP '(?<=<DeveloperData Value=")[^"]*' /tmp/unity_license.ulf)
+          SERIAL=$(echo "$B64" | base64 -d | tail -c +5)
+          echo "::add-mask::$SERIAL"
+          echo "UNITY_SERIAL=$SERIAL" >> "$GITHUB_ENV"
+          rm -f /tmp/unity_license.ulf
+
       - name: Build Unity Server
         env:
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
-          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
         run: |
           docker run --rm \
             --workdir /github/workspace \
             --env UNITY_EMAIL \
             --env UNITY_PASSWORD \
-            --env UNITY_LICENSE \
+            --env UNITY_SERIAL \
             --env SKIP_ACTIVATION=false \
             --env UNITY_VERSION=6000.3.18f1 \
             --env PROJECT_PATH=. \
