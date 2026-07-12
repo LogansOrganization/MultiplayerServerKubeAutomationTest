@@ -42,6 +42,14 @@ jobs:
           git clean -ffdx
           git reset --hard HEAD
 
+      - name: Force-clean Library from inside a container
+        run: |
+          docker run --rm \
+            --volume "${{ github.workspace }}:/github/workspace" \
+            --entrypoint /bin/bash \
+            unity-ci-custom:6000.3.18f1 \
+            -c "rm -rf /github/workspace/Library /github/workspace/Temp /github/workspace/Logs /github/workspace/obj; ls -la /github/workspace"
+
       - name: Build Unity Server
         env:
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
