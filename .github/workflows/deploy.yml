@@ -57,7 +57,7 @@ jobs:
             --env BUILD_FILE=StandaloneLinux64 \
             --env MANUAL_EXIT=false \
             --env ENABLE_GPU=false \
-            --env CUSTOM_PARAMETERS="-standaloneBuildSubtarget Server" \
+            --env 'CUSTOM_PARAMETERS=-activeBuildProfile "Assets/Settings/Build Profiles/Linux Server.asset"' \
             --volume "${{ github.workspace }}:/github/workspace" \
             unity-ci-custom:6000.3.18f1
 
