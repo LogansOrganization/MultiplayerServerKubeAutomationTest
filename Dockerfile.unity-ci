@@ -1,0 +1,24 @@
+ARG BASE_IMAGE=unityci/editor:ubuntu-6000.3.18f1-linux-il2cpp-3
+FROM $BASE_IMAGE
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    git \
+    curl \
+    ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
+# Bake in game-ci's build scripts so no runtime file-mounting is needed
+RUN git clone --depth=1 --branch v4 https://github.com/game-ci/unity-builder.git /gameci && \
+    cp -rf /gameci/dist/platforms/ubuntu/steps /steps && \
+    cp -rf /gameci/dist/default-build-script /UnityBuilderAction && \
+    cp /gameci/dist/platforms/ubuntu/entrypoint.sh /entrypoint.sh && \
+    chmod +x /entrypoint.sh && \
+    rm -rf /gameci
+
+# Node.js required by the GitHub Actions runner environment
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y nodejs && \
+    npm install -g npm@latest
+
+ENTRYPOINT ["/entrypoint.sh"]
