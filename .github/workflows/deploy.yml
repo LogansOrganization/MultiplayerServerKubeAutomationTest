@@ -24,7 +24,7 @@ jobs:
 
       - name: Build Custom Unity CI Image
         run: |
-          docker build -t unity-ci-custom:6000.3.18f1 -f Dockerfile.unity-ci .
+          docker build --no-cache -t unity-ci-custom:6000.3.18f1 -f Dockerfile.unity-ci .
 
       - name: Extract Unity Serial from License
         env:
@@ -48,7 +48,7 @@ jobs:
             --volume "${{ github.workspace }}:/github/workspace" \
             --entrypoint /bin/bash \
             unity-ci-custom:6000.3.18f1 \
-            -c "rm -rf /github/workspace/Library /github/workspace/Temp /github/workspace/Logs /github/workspace/obj; ls -la /github/workspace; echo '--- .cs files ---'; find /github/workspace/Assets -name '*.cs' -exec ls -la {} \;; echo '--- Editor folder ---'; find /github/workspace/Assets/Editor"
+            -c "rm -rf /github/workspace/Library /github/workspace/Temp /github/workspace/Logs /github/workspace/obj"
 
       - name: Build Unity Server
         env:
