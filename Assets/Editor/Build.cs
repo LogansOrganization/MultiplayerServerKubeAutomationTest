@@ -8,7 +8,7 @@ public static class Build
         BuildPlayerOptions options = new BuildPlayerOptions
         {
             scenes = new[] { "Assets/Scenes/SampleScene.unity" },
-            locationPathName = "buildServer/StandaloneLinux64/StandaloneLinux64",
+            locationPathName = "buildServer/Server",
             target = BuildTarget.StandaloneLinux64,
             subtarget = (int)StandaloneBuildSubtarget.Server,
             options = BuildOptions.None

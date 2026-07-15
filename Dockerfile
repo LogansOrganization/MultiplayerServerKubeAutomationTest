@@ -8,8 +8,8 @@ RUN apt-get update && \
 
 COPY buildServer/ .
 
-RUN chmod +x *.x86_64
+RUN chmod +x Server
 
 EXPOSE 7777/udp
 
-ENTRYPOINT ["./KubeServerTest.x86_64", "-batchmode", "-nographics"]
+ENTRYPOINT ["./Server", "-batchmode", "-nographics"]

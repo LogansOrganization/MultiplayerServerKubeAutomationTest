@@ -48,7 +48,7 @@ jobs:
             --volume "${{ github.workspace }}:/github/workspace" \
             --entrypoint /bin/bash \
             unity-ci-custom:6000.3.18f1 \
-            -c "rm -rf /github/workspace/Library /github/workspace/Temp /github/workspace/Logs /github/workspace/obj; ls -la /github/workspace"
+            -c "rm -rf /github/workspace/Library /github/workspace/Temp /github/workspace/Logs /github/workspace/obj; ls -la /github/workspace; echo '--- .cs files ---'; find /github/workspace/Assets -name '*.cs' -exec ls -la {} \;; echo '--- Editor folder ---'; find /github/workspace/Assets/Editor"
 
       - name: Build Unity Server
         env:
@@ -102,15 +102,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Deploy Kubernetes Resources
+      - name: Set Fleet Image Tag
         run: |
-          kubectl apply -f k8s/
+          sed -i "s|__IMAGE_TAG__|${{ github.sha }}|" k8s/fleet.yaml
 
-      - name: Update Deployment Image
+      - name: Apply Fleet
         run: |
-          kubectl set image deployment/unity-server \
-            unity-server=$IMAGE_NAME:${{ github.sha }}
+          kubectl apply -f k8s/fleet.yaml
 
-      - name: Wait For Rollout
+      - name: Wait For Fleet Rollout
         run: |
-          kubectl rollout status deployment/unity-server
+          for i in $(seq 1 30); do
+            READY=$(kubectl get fleet unity-server -o jsonpath='{.status.readyReplicas}')
+            DESIRED=$(kubectl get fleet unity-server -o jsonpath='{.spec.replicas}')
+            echo "Ready: ${READY:-0}/${DESIRED}"
+            [ "$READY" = "$DESIRED" ] && exit 0
+            sleep 10
+          done
+          echo "Timed out waiting for fleet rollout" >&2
+          exit 1

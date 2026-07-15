@@ -1,0 +1,16 @@
+# Reference/manual-testing manifest — this is NOT applied by CI.
+#
+# A GameServerAllocation is a request, not a standing resource: submitting it
+# claims one Ready GameServer from the Fleet below and flips it to Allocated.
+# A real matchmaker calls the Agones Allocator Service (gRPC/REST) to do this;
+# `kubectl create` against this file is the equivalent for manual testing:
+#
+#   kubectl create -f k8s/gameserverallocation.yaml -o yaml
+#
+# The response's status.address / status.ports is where the client connects.
+apiVersion: allocation.agones.dev/v1
+kind: GameServerAllocation
+spec:
+  selectors:
+    - matchLabels:
+        app: unity-server
