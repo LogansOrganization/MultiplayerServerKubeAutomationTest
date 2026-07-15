@@ -1,0 +1,39 @@
+# Templated by CI (`envsubst` expands the ${VAR} tokens before `kubectl apply`;
+# envsubst does literal substitution, so secret values with special characters
+# can't break the templating the way a sed delimiter could).
+#
+# Not applied directly — this Job builds the Unity server as a native Kubernetes
+# pod (no Docker-in-Docker), so it isn't subject to the runner's own Docker-socket
+# path-mismatch problems. CI pulls the build output out with `kubectl cp`, then
+# deletes the Job; ttlSecondsAfterFinished is just a safety net.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: unity-build-${RUN_ID}
+spec:
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 600
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: build
+          image: ghcr.io/logansorganization/unity-ci-build:${RUN_ID}
+          env:
+            - name: UNITY_EMAIL
+              value: "${UNITY_EMAIL}"
+            - name: UNITY_PASSWORD
+              value: "${UNITY_PASSWORD}"
+            - name: UNITY_SERIAL
+              value: "${UNITY_SERIAL}"
+            - name: GITHUB_TOKEN
+              value: "${GH_TOKEN}"
+            - name: GIT_REF
+              value: "${GIT_SHA}"
+          resources:
+            requests:
+              cpu: "2"
+              memory: "4Gi"
+            limits:
+              cpu: "4"
+              memory: "8Gi"
