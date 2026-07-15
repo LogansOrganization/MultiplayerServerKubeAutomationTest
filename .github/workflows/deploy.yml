@@ -22,10 +22,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build Custom Unity CI Image
-        run: |
-          docker build --no-cache -t unity-ci-custom:6000.3.18f1 -f Dockerfile.unity-ci .
-
       - name: Extract Unity Serial from License
         env:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
@@ -37,42 +33,18 @@ jobs:
           echo "UNITY_SERIAL=$SERIAL" >> "$GITHUB_ENV"
           rm -f /tmp/unity_license.ulf
 
-      - name: Clean stale Unity Library cache
-        run: |
-          git clean -ffdx
-          git reset --hard HEAD
-
-      - name: Force-clean Library from inside a container
-        run: |
-          docker run --rm \
-            --volume "${{ github.workspace }}:/github/workspace" \
-            --entrypoint /bin/bash \
-            unity-ci-custom:6000.3.18f1 \
-            -c "rm -rf /github/workspace/Library /github/workspace/Temp /github/workspace/Logs /github/workspace/obj"
-
       - name: Build Unity Server
+        uses: game-ci/unity-builder@v4
         env:
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
-        run: |
-          docker run --rm \
-            --workdir /github/workspace \
-            --env UNITY_EMAIL \
-            --env UNITY_PASSWORD \
-            --env UNITY_SERIAL \
-            --env SKIP_ACTIVATION=false \
-            --env UNITY_VERSION=6000.3.18f1 \
-            --env GITHUB_WORKSPACE=/github/workspace \
-            --env PROJECT_PATH=. \
-            --env BUILD_TARGET=StandaloneLinux64 \
-            --env BUILD_NAME=StandaloneLinux64 \
-            --env BUILD_PATH=buildServer/StandaloneLinux64 \
-            --env BUILD_FILE=StandaloneLinux64 \
-            --env BUILD_METHOD=Build.Server \
-            --env MANUAL_EXIT=false \
-            --env ENABLE_GPU=false \
-            --volume "${{ github.workspace }}:/github/workspace" \
-            unity-ci-custom:6000.3.18f1
+          UNITY_SERIAL: ${{ env.UNITY_SERIAL }}
+        with:
+          unityVersion: 6000.3.18f1
+          targetPlatform: StandaloneLinux64
+          buildMethod: Build.Server
+          buildsPath: buildServer
+          runAsHostUser: true
 
       - name: Login to GHCR
         uses: docker/login-action@v3

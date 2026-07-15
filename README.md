@@ -13,7 +13,6 @@ in-process health/readiness signaling, and fleet scaling based on player demand.
 - `Assets/scripts/AgonesSdk.cs` — talks to the Agones SDK sidecar over its local REST
   gateway (`localhost:9358`), including the periodic health ping.
 - `Dockerfile` — packages the build output onto `ubuntu:22.04`.
-- `Dockerfile.unity-ci` — Unity Editor image used by CI to run the headless build.
 - `k8s/fleet.yaml` — Agones `Fleet`: the pool of warm game server instances.
 - `k8s/gameserverallocation.yaml` — reference manifest for manually claiming a
   `Ready` instance (a real matchmaker would call the Agones Allocator service instead).
