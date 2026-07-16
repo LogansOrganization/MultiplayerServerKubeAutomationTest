@@ -27,9 +27,10 @@ in-process health/readiness signaling, and fleet scaling based on player demand.
 - `.github/workflows/deploy.yml` — builds the Unity server via the Job above,
   builds/pushes the runtime image, bumps the tag in `k8s/fleet.yaml`, and applies it.
 
-The runner's cluster identity needs `create`/`get`/`delete` on `jobs` and
-`get`/`list` on `pods` plus `pods/exec` (required by `kubectl cp` and `kubectl logs`)
-in whatever namespace the build Job runs in — that RBAC isn't part of this repo.
+- `k8s/rbac-build.yaml` — Role/RoleBinding granting the runner's ServiceAccount
+  (`system:serviceaccount:github-runner:github-runner`) the `jobs`/`pods`/`pods/log`/
+  `pods/exec` access it needs in the `default` namespace to run and clean up the
+  build Job. Without this, `Wait For Unity Build Job` fails with a Forbidden error.
 
 ## One-time cluster setup
 
@@ -41,6 +42,17 @@ helm repo update
 helm install agones --namespace agones-system --create-namespace agones/agones
 ```
 
+Grant the CI runner the permissions it needs to manage the build Job:
+
+```bash
+kubectl apply -f k8s/rbac-build.yaml
+```
+
+The `unity-ci-build` GHCR package (pushed by the "Build and Push Unity CI Image"
+step) needs to be **public**, so the cluster nodes can pull it without a separate
+imagePullSecret: GitHub → org → Packages → `unity-ci-build` → Package settings →
+Change visibility → Public. (It won't exist until after the first successful push.)
+
 Then apply the fleet manifest (CI does this on every push to `dev`):
 
 ```bash
@@ -51,4 +63,15 @@ To manually claim a server for testing:
 
 ```bash
 kubectl create -f k8s/gameserverallocation.yaml -o yaml
+```
+
+## Troubleshooting a stuck build Job
+
+A pod wedged in `ImagePullBackOff` (or anything else that never reaches
+Complete/Failed) won't be cleaned up by `ttlSecondsAfterFinished` — that only
+fires once the Job actually finishes. Check for and remove strays manually:
+
+```bash
+kubectl get jobs -A | grep unity-build
+kubectl delete job unity-build-<sha> -n default
 ```

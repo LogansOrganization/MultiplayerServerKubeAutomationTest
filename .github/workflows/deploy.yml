@@ -12,6 +12,7 @@ jobs:
 
   build:
     runs-on: self-hosted
+    timeout-minutes: 30
 
     permissions:
       contents: read
@@ -54,34 +55,34 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GIT_SHA: ${{ github.sha }}
         run: |
-          envsubst < k8s/build-job.yaml | kubectl apply -f -
+          envsubst < k8s/build-job.yaml | kubectl apply --request-timeout=15s -f -
 
       - name: Wait For Unity Build Job
         run: |
           for i in $(seq 1 90); do
-            SUCCEEDED=$(kubectl get job unity-build-${{ github.sha }} -o jsonpath='{.status.succeeded}')
-            FAILED=$(kubectl get job unity-build-${{ github.sha }} -o jsonpath='{.status.failed}')
+            SUCCEEDED=$(kubectl get job unity-build-${{ github.sha }} --request-timeout=15s -o jsonpath='{.status.succeeded}')
+            FAILED=$(kubectl get job unity-build-${{ github.sha }} --request-timeout=15s -o jsonpath='{.status.failed}')
             [ "$SUCCEEDED" = "1" ] && exit 0
             if [ "$FAILED" = "1" ]; then
               echo "Build job failed — logs:"
-              kubectl logs job/unity-build-${{ github.sha }} --all-containers || true
+              kubectl logs job/unity-build-${{ github.sha }} --all-containers --request-timeout=15s || true
               exit 1
             fi
             sleep 10
           done
           echo "Timed out waiting for Unity build job — logs:"
-          kubectl logs job/unity-build-${{ github.sha }} --all-containers || true
+          kubectl logs job/unity-build-${{ github.sha }} --all-containers --request-timeout=15s || true
           exit 1
 
       - name: Extract Build Output
         run: |
-          POD=$(kubectl get pods -l job-name=unity-build-${{ github.sha }} -o jsonpath='{.items[0].metadata.name}')
+          POD=$(kubectl get pods -l job-name=unity-build-${{ github.sha }} --request-timeout=15s -o jsonpath='{.items[0].metadata.name}')
           kubectl cp "$POD:/workspace/buildServer" ./buildServer
 
       - name: Clean Up Unity Build Job
         if: always()
         run: |
-          kubectl delete job unity-build-${{ github.sha }} --ignore-not-found
+          kubectl delete job unity-build-${{ github.sha }} --request-timeout=15s --ignore-not-found
 
       - name: Build Docker Image
         run: |
