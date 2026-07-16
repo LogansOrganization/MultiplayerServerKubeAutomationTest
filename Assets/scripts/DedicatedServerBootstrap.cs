@@ -8,7 +8,7 @@ public class DedicatedServerBootstrap : MonoBehaviour
 #if UNITY_SERVER
         StartServer();
 #else
-        Debug.Log("Client build started");
+        StartClient();
 #endif
     }
 
@@ -45,5 +45,36 @@ public class DedicatedServerBootstrap : MonoBehaviour
         // it's hosting a match and won't hand it out again or reap it early.
         AgonesSdk.Instance.Allocate();
         NetworkManager.Singleton.OnClientConnectedCallback -= OnClientConnected;
+    }
+
+    private void StartClient()
+    {
+        if (NetworkManager.Singleton == null)
+        {
+            Debug.LogError("No NetworkManager found in scene!");
+            return;
+        }
+
+        NetworkManager.Singleton.OnClientConnectedCallback += HandleLocalClientConnected;
+        NetworkManager.Singleton.OnClientDisconnectCallback += HandleLocalClientDisconnected;
+
+        bool started = NetworkManager.Singleton.StartClient();
+        Debug.Log(started ? "Client started, attempting to connect..." : "Failed to start client");
+    }
+
+    private void HandleLocalClientConnected(ulong clientId)
+    {
+        if (clientId == NetworkManager.Singleton.LocalClientId)
+        {
+            Debug.Log("Successfully connected to server!");
+        }
+    }
+
+    private void HandleLocalClientDisconnected(ulong clientId)
+    {
+        if (clientId == NetworkManager.Singleton.LocalClientId)
+        {
+            Debug.LogError("Disconnected from server (connection failed or lost).");
+        }
     }
 }
