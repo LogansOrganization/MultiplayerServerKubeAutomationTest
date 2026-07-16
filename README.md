@@ -26,7 +26,6 @@ in-process health/readiness signaling, and fleet scaling based on player demand.
   `Ready` instance (a real matchmaker would call the Agones Allocator service instead).
 - `.github/workflows/deploy.yml` — builds the Unity server via the Job above,
   builds/pushes the runtime image, bumps the tag in `k8s/fleet.yaml`, and applies it.
-
 - `k8s/rbac-build.yaml` — Role/RoleBinding granting the runner's ServiceAccount
   (`system:serviceaccount:github-runner:github-runner`) the `jobs`/`pods`/`pods/log`/
   `pods/exec` access it needs in the `default` namespace to run and clean up the
@@ -48,10 +47,19 @@ Grant the CI runner the permissions it needs to manage the build Job:
 kubectl apply -f k8s/rbac-build.yaml
 ```
 
-The `unity-ci-build` GHCR package (pushed by the "Build and Push Unity CI Image"
-step) needs to be **public**, so the cluster nodes can pull it without a separate
-imagePullSecret: GitHub → org → Packages → `unity-ci-build` → Package settings →
-Change visibility → Public. (It won't exist until after the first successful push.)
+Both `unity-ci-build` and `unity-server` are private GHCR packages, so the cluster
+nodes need their own pull credential — a workflow-scoped `GITHUB_TOKEN` won't do,
+since it expires when the run ends and the cluster may need to re-pull an image
+anytime after (e.g. on pod restart). Create a classic PAT with the `read:packages`
+scope (a member of the org with package read access; authorize it for SSO if the
+org enforces that), then create the pull secret once:
+
+```bash
+kubectl create secret docker-registry ghcr-pull-secret --docker-server=ghcr.io --docker-username=LoganCHobson --docker-password="<PAT with read:packages>" --namespace=default
+```
+
+Both `k8s/build-job.yaml` and `k8s/fleet.yaml` already reference this secret via
+`imagePullSecrets`.
 
 Then apply the fleet manifest (CI does this on every push to `dev`):
 

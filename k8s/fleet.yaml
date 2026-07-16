@@ -29,6 +29,8 @@ spec:
 
       template:
         spec:
+          imagePullSecrets:
+            - name: ghcr-pull-secret
           containers:
             - name: unity-server
               # CI replaces __IMAGE_TAG__ before `kubectl apply`.
