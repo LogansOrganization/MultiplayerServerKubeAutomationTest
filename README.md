@@ -42,6 +42,10 @@ in-process health/readiness signaling, and fleet scaling based on player demand.
   `pods/exec`/`secrets` access it needs in the `default` namespace to run and clean
   up the build Job and its per-run Secrets. Without this, `Wait For Unity Build Job`
   fails with a Forbidden error.
+- `k8s/rbac-deploy.yaml` — same idea, for the `deploy` job: grants that same
+  ServiceAccount `get`/`list`/`watch`/`create`/`patch`/`update` on the `agones.dev`
+  `fleets` resource in `default`. Without this, `Apply Fleet` fails with a Forbidden
+  error the same way the build Job did before `rbac-build.yaml` existed.
 
 ## One-time cluster setup
 
@@ -53,10 +57,11 @@ helm repo update
 helm install agones --namespace agones-system --create-namespace agones/agones
 ```
 
-Grant the CI runner the permissions it needs to manage the build Job:
+Grant the CI runner the permissions it needs to manage the build Job and the Fleet:
 
 ```bash
 kubectl apply -f k8s/rbac-build.yaml
+kubectl apply -f k8s/rbac-deploy.yaml
 ```
 
 Both `unity-ci-build` and `unity-server` are private GHCR packages, so the cluster
