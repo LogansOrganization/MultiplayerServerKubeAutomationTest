@@ -29,11 +29,21 @@ BUILD_EXIT_CODE=$?
 set -e
 
 echo "--- Returning Unity license ---"
+set +e
 unity-editor \
   -batchmode -quit -nographics \
   -returnlicense \
   -projectPath /workspace \
   -logFile /dev/stdout
+if [ $? -ne 0 ]; then
+  echo "--- License return failed (non-fatal, doesn't affect build result) ---"
+fi
+set -e
 
 echo "--- Build exit code: $BUILD_EXIT_CODE ---"
+echo "$BUILD_EXIT_CODE" > /workspace/.BUILD_EXIT_CODE.tmp
+mv /workspace/.BUILD_EXIT_CODE.tmp /workspace/BUILD_EXIT_CODE
+
+echo "--- Build phase complete, holding pod open so CI can extract output ---"
+sleep 300
 exit $BUILD_EXIT_CODE

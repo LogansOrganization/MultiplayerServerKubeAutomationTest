@@ -12,7 +12,7 @@ jobs:
 
   build:
     runs-on: self-hosted
-    timeout-minutes: 30
+    timeout-minutes: 45
 
     permissions:
       contents: read
@@ -47,42 +47,70 @@ jobs:
             -t ghcr.io/logansorganization/unity-ci-build:${{ github.sha }} .
           docker push ghcr.io/logansorganization/unity-ci-build:${{ github.sha }}
 
+      - name: Create Per-Run Secrets
+        env:
+          GH_TOKEN_VALUE: ${{ secrets.GITHUB_TOKEN }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        run: |
+          kubectl create secret generic unity-build-token-${{ github.sha }} \
+            --from-literal=token="$GH_TOKEN_VALUE" \
+            --namespace=default \
+            --request-timeout=15s \
+            --dry-run=client -o yaml | kubectl apply --request-timeout=15s -f -
+
+          kubectl create secret generic unity-license-${{ github.sha }} \
+            --from-literal=email="$UNITY_EMAIL" \
+            --from-literal=password="$UNITY_PASSWORD" \
+            --from-literal=serial="$UNITY_SERIAL" \
+            --namespace=default \
+            --request-timeout=15s \
+            --dry-run=client -o yaml | kubectl apply --request-timeout=15s -f -
+
       - name: Render and Apply Unity Build Job
         env:
           RUN_ID: ${{ github.sha }}
-          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
-          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GIT_SHA: ${{ github.sha }}
         run: |
           envsubst < k8s/build-job.yaml | kubectl apply --request-timeout=15s -f -
 
       - name: Wait For Unity Build Job
         run: |
-          for i in $(seq 1 90); do
-            SUCCEEDED=$(kubectl get job unity-build-${{ github.sha }} --request-timeout=15s -o jsonpath='{.status.succeeded}')
-            FAILED=$(kubectl get job unity-build-${{ github.sha }} --request-timeout=15s -o jsonpath='{.status.failed}')
-            [ "$SUCCEEDED" = "1" ] && exit 0
-            if [ "$FAILED" = "1" ]; then
-              echo "Build job failed — logs:"
-              kubectl logs job/unity-build-${{ github.sha }} --all-containers --request-timeout=15s || true
-              exit 1
+          for i in $(seq 1 120); do
+            POD=$(kubectl get pods -l job-name=unity-build-${{ github.sha }} --request-timeout=15s -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+            if [ -n "$POD" ]; then
+              EXIT_CODE=$(kubectl exec "$POD" --request-timeout=15s -- cat /workspace/BUILD_EXIT_CODE 2>/dev/null || true)
+              if [ -n "$EXIT_CODE" ]; then
+                echo "POD_NAME=$POD" >> "$GITHUB_ENV"
+                echo "BUILD_JOB_EXIT_CODE=$EXIT_CODE" >> "$GITHUB_ENV"
+                echo "Build phase finished with exit code $EXIT_CODE"
+                exit 0
+              fi
+              PHASE=$(kubectl get pod "$POD" --request-timeout=15s -o jsonpath='{.status.phase}' 2>/dev/null || true)
+              if [ "$PHASE" = "Failed" ]; then
+                echo "Pod failed before completing the build — logs:"
+                kubectl logs "$POD" --request-timeout=15s || true
+                exit 1
+              fi
             fi
             sleep 10
           done
-          echo "Timed out waiting for Unity build job — logs:"
-          kubectl logs job/unity-build-${{ github.sha }} --all-containers --request-timeout=15s || true
+          echo "Timed out waiting for Unity build job"
+          [ -n "${POD:-}" ] && kubectl logs "$POD" --request-timeout=15s || true
           exit 1
 
       - name: Extract Build Output
         run: |
-          POD=$(kubectl get pods -l job-name=unity-build-${{ github.sha }} --request-timeout=15s -o jsonpath='{.items[0].metadata.name}')
-          kubectl cp "$POD:/workspace/buildServer" ./buildServer
+          kubectl cp "$POD_NAME:/workspace/buildServer" ./buildServer --request-timeout=15s
+          echo "Unity build exit code was $BUILD_JOB_EXIT_CODE"
+          [ "$BUILD_JOB_EXIT_CODE" = "0" ]
 
       - name: Clean Up Unity Build Job
         if: always()
         run: |
           kubectl delete job unity-build-${{ github.sha }} --request-timeout=15s --ignore-not-found
+          kubectl delete secret unity-build-token-${{ github.sha }} --request-timeout=15s --ignore-not-found
+          kubectl delete secret unity-license-${{ github.sha }} --request-timeout=15s --ignore-not-found
 
       - name: Build Docker Image
         run: |

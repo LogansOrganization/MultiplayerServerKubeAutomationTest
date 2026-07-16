@@ -19,17 +19,29 @@ in-process health/readiness signaling, and fleet scaling based on player demand.
   native pod. The CI runner is itself a containerized (actions-runner-controller) pod
   that reaches Docker through a passthrough socket, which breaks Docker-in-Docker
   bind-mounts (e.g. `game-ci/unity-builder`'s own entrypoint) — running the actual
-  Unity build as its own scheduled Job sidesteps that entirely. CI applies it, waits
-  for it, `kubectl cp`s `buildServer/` out of the pod, then deletes the Job.
+  Unity build as its own scheduled Job sidesteps that entirely. `entrypoint.sh` writes
+  its exit code to `/workspace/BUILD_EXIT_CODE` and then holds the pod open (`sleep
+  300`) instead of exiting immediately — `kubectl cp`/`kubectl exec` need a *running*
+  container, and `Job.status.succeeded` only flips true after the container has
+  already exited, so waiting on that would be too late to extract anything. CI polls
+  for that marker file via `kubectl exec`, `kubectl cp`s `buildServer/` out while the
+  pod is still alive, then deletes the Job (which cuts the sleep short).
 - `k8s/fleet.yaml` — Agones `Fleet`: the pool of warm game server instances.
 - `k8s/gameserverallocation.yaml` — reference manifest for manually claiming a
   `Ready` instance (a real matchmaker would call the Agones Allocator service instead).
 - `.github/workflows/deploy.yml` — builds the Unity server via the Job above,
   builds/pushes the runtime image, bumps the tag in `k8s/fleet.yaml`, and applies it.
+  The Unity license (email/password/serial, sourced from GitHub Actions secrets each
+  run) and the `GITHUB_TOKEN` used to clone the repo are written into two ephemeral
+  Kubernetes Secrets (`unity-license-<sha>`, `unity-build-token-<sha>`) that the Job
+  references via `secretKeyRef`, and both are deleted alongside the Job when it's
+  done. Nothing project-specific is pre-seeded on the cluster — copy this workflow
+  to another Unity project and it only needs its own GH secrets set.
 - `k8s/rbac-build.yaml` — Role/RoleBinding granting the runner's ServiceAccount
   (`system:serviceaccount:github-runner:github-runner`) the `jobs`/`pods`/`pods/log`/
-  `pods/exec` access it needs in the `default` namespace to run and clean up the
-  build Job. Without this, `Wait For Unity Build Job` fails with a Forbidden error.
+  `pods/exec`/`secrets` access it needs in the `default` namespace to run and clean
+  up the build Job and its per-run Secrets. Without this, `Wait For Unity Build Job`
+  fails with a Forbidden error.
 
 ## One-time cluster setup
 

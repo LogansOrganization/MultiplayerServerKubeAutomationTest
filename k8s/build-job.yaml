@@ -1,6 +1,9 @@
 # Templated by CI (`envsubst` expands the ${VAR} tokens before `kubectl apply`;
 # envsubst does literal substitution, so secret values with special characters
-# can't break the templating the way a sed delimiter could).
+# can't break the templating the way a sed delimiter could). Only non-sensitive
+# values are templated in as plain strings — actual credentials come from Secret
+# references below, which `kubectl describe`/`get -o yaml` redact (a plain `value:`
+# field does not).
 #
 # Not applied directly — this Job builds the Unity server as a native Kubernetes
 # pod (no Docker-in-Docker), so it isn't subject to the runner's own Docker-socket
@@ -23,13 +26,25 @@ spec:
           image: ghcr.io/logansorganization/unity-ci-build:${RUN_ID}
           env:
             - name: UNITY_EMAIL
-              value: "${UNITY_EMAIL}"
+              valueFrom:
+                secretKeyRef:
+                  name: unity-license-${RUN_ID}
+                  key: email
             - name: UNITY_PASSWORD
-              value: "${UNITY_PASSWORD}"
+              valueFrom:
+                secretKeyRef:
+                  name: unity-license-${RUN_ID}
+                  key: password
             - name: UNITY_SERIAL
-              value: "${UNITY_SERIAL}"
+              valueFrom:
+                secretKeyRef:
+                  name: unity-license-${RUN_ID}
+                  key: serial
             - name: GITHUB_TOKEN
-              value: "${GH_TOKEN}"
+              valueFrom:
+                secretKeyRef:
+                  name: unity-build-token-${RUN_ID}
+                  key: token
             - name: GIT_REF
               value: "${GIT_SHA}"
           resources:
