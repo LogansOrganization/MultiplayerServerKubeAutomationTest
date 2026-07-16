@@ -5,6 +5,8 @@ metadata:
 spec:
   replicas: 2
   scheduling: Packed
+  strategy:
+    type: Recreate
 
   template:
     metadata:
