@@ -1,4 +1,5 @@
 using Unity.Netcode;
+using Unity.Netcode.Transports.UTP;
 using UnityEngine;
 
 public class DedicatedServerBootstrap : MonoBehaviour
@@ -55,11 +56,39 @@ public class DedicatedServerBootstrap : MonoBehaviour
             return;
         }
 
+        // Agones hands out a different address:port per allocation (dynamic
+        // port policy), so the target can't be baked into the scene. Pass it
+        // at launch instead: MyClient.exe -ip <address> -port <port>. Falls
+        // back to whatever's set on the UnityTransport component in the
+        // Inspector, which is convenient for same-machine Editor testing.
+        string ip = GetArg("-ip");
+        string portArg = GetArg("-port");
+
+        if (!string.IsNullOrEmpty(ip) && ushort.TryParse(portArg, out ushort port))
+        {
+            NetworkManager.Singleton.GetComponent<UnityTransport>().SetConnectionData(ip, port);
+            Debug.Log($"Connecting to {ip}:{port} (from command line)");
+        }
+
         NetworkManager.Singleton.OnClientConnectedCallback += HandleLocalClientConnected;
         NetworkManager.Singleton.OnClientDisconnectCallback += HandleLocalClientDisconnected;
 
         bool started = NetworkManager.Singleton.StartClient();
         Debug.Log(started ? "Client started, attempting to connect..." : "Failed to start client");
+    }
+
+    private static string GetArg(string name)
+    {
+        string[] args = System.Environment.GetCommandLineArgs();
+        for (int i = 0; i < args.Length - 1; i++)
+        {
+            if (args[i] == name)
+            {
+                return args[i + 1];
+            }
+        }
+
+        return null;
     }
 
     private void HandleLocalClientConnected(ulong clientId)

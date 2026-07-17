@@ -145,9 +145,12 @@ jobs:
         run: |
           for i in $(seq 1 30); do
             READY=$(kubectl get fleet unity-server -o jsonpath='{.status.readyReplicas}')
+            ALLOCATED=$(kubectl get fleet unity-server -o jsonpath='{.status.allocatedReplicas}')
             DESIRED=$(kubectl get fleet unity-server -o jsonpath='{.spec.replicas}')
-            echo "Ready: ${READY:-0}/${DESIRED}"
-            [ "$READY" = "$DESIRED" ] && exit 0
+            READY=${READY:-0}
+            ALLOCATED=${ALLOCATED:-0}
+            echo "Ready: $READY, Allocated: $ALLOCATED, Desired: $DESIRED"
+            [ "$((READY + ALLOCATED))" -ge "$DESIRED" ] && exit 0
             sleep 10
           done
           echo "Timed out waiting for fleet rollout" >&2
