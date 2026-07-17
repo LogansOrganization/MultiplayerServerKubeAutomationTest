@@ -4,6 +4,8 @@ using UnityEngine;
 
 public class DedicatedServerBootstrap : MonoBehaviour
 {
+    [SerializeField] private int maxPlayers = 8;
+
     private void Start()
     {
 #if UNITY_SERVER
@@ -31,8 +33,16 @@ public class DedicatedServerBootstrap : MonoBehaviour
             // Fleet, and starts the periodic health ping the sidecar expects.
             AgonesSdk.Instance.Ready();
 
+            // Registers with the relay connector so players can discover this
+            // instance through the server browser instead of needing a direct
+            // node address/port.
+            ushort gamePort = NetworkManager.Singleton.GetComponent<UnityTransport>().ConnectionData.Port;
+            string serverName = System.Environment.GetEnvironmentVariable("HOSTNAME") ?? SystemInfo.deviceUniqueIdentifier;
+            RelayConnectorClient.Instance.Register(serverName, gamePort, maxPlayers);
+
             NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnected;
             Application.quitting += AgonesSdk.Instance.Shutdown;
+            Application.quitting += RelayConnectorClient.Instance.Deregister;
         }
         else
         {
@@ -58,23 +68,32 @@ public class DedicatedServerBootstrap : MonoBehaviour
 
         // Agones hands out a different address:port per allocation (dynamic
         // port policy), so the target can't be baked into the scene. Pass it
-        // at launch instead: MyClient.exe -ip <address> -port <port>. Falls
-        // back to whatever's set on the UnityTransport component in the
-        // Inspector, which is convenient for same-machine Editor testing.
+        // at launch instead: MyClient.exe -ip <address> -port <port>. With no
+        // args, show the server browser so the player can pick a live
+        // GameServer from the relay's registry instead.
         string ip = GetArg("-ip");
         string portArg = GetArg("-port");
 
         if (!string.IsNullOrEmpty(ip) && ushort.TryParse(portArg, out ushort port))
         {
-            NetworkManager.Singleton.GetComponent<UnityTransport>().SetConnectionData(ip, port);
             Debug.Log($"Connecting to {ip}:{port} (from command line)");
+            ConnectToServer(ip, port);
         }
+        else
+        {
+            ServerBrowserUI.Show(ConnectToServer);
+        }
+    }
+
+    private void ConnectToServer(string ip, ushort port)
+    {
+        NetworkManager.Singleton.GetComponent<UnityTransport>().SetConnectionData(ip, port);
 
         NetworkManager.Singleton.OnClientConnectedCallback += HandleLocalClientConnected;
         NetworkManager.Singleton.OnClientDisconnectCallback += HandleLocalClientDisconnected;
 
         bool started = NetworkManager.Singleton.StartClient();
-        Debug.Log(started ? "Client started, attempting to connect..." : "Failed to start client");
+        Debug.Log(started ? $"Client started, attempting to connect to {ip}:{port}..." : "Failed to start client");
     }
 
     private static string GetArg(string name)

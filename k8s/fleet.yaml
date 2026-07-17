@@ -38,6 +38,21 @@ spec:
               # CI replaces __IMAGE_TAG__ before `kubectl apply`.
               image: ghcr.io/logansorganization/unity-server:__IMAGE_TAG__
 
+              env:
+                # Reported to the relay connector as this GameServer's
+                # pod_addr — pod IPs are routable in-cluster, so the connector
+                # can reach the container directly on containerPort 7777
+                # without going through Agones' hostPort mapping.
+                - name: POD_IP
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: status.podIP
+                - name: GAMESERVER_SHARED_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      name: gameserver-shared-secret
+                      key: secret
+
               resources:
                 requests:
                   cpu: "500m"
