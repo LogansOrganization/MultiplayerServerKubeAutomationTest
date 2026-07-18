@@ -69,8 +69,9 @@ public class DedicatedServerBootstrap : MonoBehaviour
         // Agones hands out a different address:port per allocation (dynamic
         // port policy), so the target can't be baked into the scene. Pass it
         // at launch instead: MyClient.exe -ip <address> -port <port>. With no
-        // args, show the server browser so the player can pick a live
-        // GameServer from the relay's registry instead.
+        // args, show the title screen first — NetworkManager.StartClient()
+        // must not be called until the player picks a server and presses
+        // Connect in ServerBrowserUI.
         string ip = GetArg("-ip");
         string portArg = GetArg("-port");
 
@@ -81,7 +82,7 @@ public class DedicatedServerBootstrap : MonoBehaviour
         }
         else
         {
-            ServerBrowserUI.Show(ConnectToServer);
+            TitleScreenUI.Show(() => ServerBrowserUI.Show(ConnectToServer));
         }
     }
 
