@@ -176,8 +176,8 @@ MonoBehaviour:
     y: 0
     width: 907
     height: 243
-  m_MinSize: {x: 200, y: 200}
-  m_MaxSize: {x: 4000, y: 4000}
+  m_MinSize: {x: 201, y: 226}
+  m_MaxSize: {x: 4001, y: 4026}
   m_ActualView: {fileID: 5}
   m_Panes:
   - {fileID: 5}
@@ -725,7 +725,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 1
   m_Script: {fileID: 12006, guid: 0000000000000000e000000000000000, type: 0}
-  m_Name: 
+  m_Name: GameView
   m_EditorClassIdentifier: 
   m_Children: []
   m_Position:
@@ -809,11 +809,13 @@ MonoBehaviour:
     m_TreeViewState:
       scrollPos: {x: 0, y: 0}
       m_SelectedIDs:
-      - m_Data: 60716
+      - m_Data: 61356
       m_LastClickedID:
-        m_Data: 0
+        m_Data: 61356
       m_ExpandedIDs:
+      - m_Data: -3846
       - m_Data: -1340
+      - m_Data: -12
       m_RenameOverlay:
         m_UserAcceptedRename: 0
         m_Name: 
@@ -914,7 +916,7 @@ MonoBehaviour:
     m_SkipHidden: 0
     m_SearchArea: 1
     m_Folders:
-    - Assets
+    - Assets/scripts
     m_Globs: []
     m_ProductIds: 
     m_AnyWithAssetOrigin: 0
@@ -936,9 +938,10 @@ MonoBehaviour:
       m_Data: 0
     m_ExpandedIDs:
     - m_Data: 0
-    - m_Data: 60808
-    - m_Data: 60810
-    - m_Data: 60812
+    - m_Data: 60824
+    - m_Data: 60826
+    - m_Data: 60828
+    - m_Data: 60830
     m_RenameOverlay:
       m_UserAcceptedRename: 0
       m_Name: 
@@ -967,14 +970,16 @@ MonoBehaviour:
   m_AssetTreeState:
     scrollPos: {x: 0, y: 0}
     m_SelectedIDs:
-    - m_Data: 60716
+    - m_Data: 61356
     m_LastClickedID:
       m_Data: 0
     m_ExpandedIDs:
     - m_Data: 0
-    - m_Data: 60808
-    - m_Data: 60810
-    - m_Data: 60812
+    - m_Data: 60824
+    - m_Data: 60826
+    - m_Data: 60828
+    - m_Data: 60830
+    - m_Data: 61196
     m_RenameOverlay:
       m_UserAcceptedRename: 0
       m_Name: 
@@ -1002,8 +1007,8 @@ MonoBehaviour:
       m_ResourceFile: 
   m_ListAreaState:
     m_SelectedInstanceIDs:
-    - m_Data: 60716
-    m_LastClickedInstanceID: 60716
+    - m_Data: 61356
+    m_LastClickedInstanceID: 61356
     m_HadKeyboardFocusLastEvent: 0
     m_ExpandedInstanceIDs: []
     m_RenameOverlay:
