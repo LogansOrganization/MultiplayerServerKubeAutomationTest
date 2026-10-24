@@ -83,6 +83,8 @@ public class RelayConnectorClient : MonoBehaviour
         }
     }
 
+    // Keeps this server registered for as long as it runs: if the connection drops (connector
+    // restart, node reboot, network blip) it reconnects and registers again, backing off 2s..30s.
     private async Task RunAsync(string serverName, ushort gamePort, int maxPlayers, CancellationToken token)
     {
         string host = GetEnv("CONNECTOR_HOST", "connector.unity-relay.svc.cluster.local");
@@ -96,8 +98,37 @@ public class RelayConnectorClient : MonoBehaviour
             return;
         }
 
+        int backoffSeconds = 2;
+        while (!token.IsCancellationRequested)
+        {
+            bool registered = await ConnectAndServeAsync(host, port, podIp, secret, serverName, gamePort, maxPlayers, token).ConfigureAwait(false);
+            if (token.IsCancellationRequested)
+            {
+                return;
+            }
+
+            // A session that got registered resets the backoff; repeated failures slow down.
+            backoffSeconds = registered ? 2 : Math.Min(backoffSeconds * 2, 30);
+            Debug.Log($"Reconnecting to the relay connector in {backoffSeconds}s...");
+            try
+            {
+                await Task.Delay(backoffSeconds * 1000, token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+        }
+    }
+
+    // One connection: register, then heartbeat until it fails. Returns whether it got registered.
+    private async Task<bool> ConnectAndServeAsync(string host, int port, string podIp, string secret,
+        string serverName, ushort gamePort, int maxPlayers, CancellationToken token)
+    {
+        bool registered = false;
         try
         {
+            client?.Close();
             client = new TcpClient();
             await client.ConnectAsync(host, port).ConfigureAwait(false);
             stream = client.GetStream();
@@ -115,18 +146,21 @@ public class RelayConnectorClient : MonoBehaviour
             byte[] ackPayload = await ReadFramePayloadAsync(stream, token).ConfigureAwait(false);
             RelayResponse ack = JsonUtility.FromJson<RelayResponse>(Encoding.UTF8.GetString(ackPayload));
 
+            // Retried by the caller: right after a reconnect the relay can still hold the old
+            // registration under this name until its heartbeat times out.
             if (ack.type == "RegisterNack")
             {
-                Debug.LogError($"Relay connector rejected registration: {ack.reason}");
-                return;
+                Debug.LogWarning($"Relay connector rejected registration: {ack.reason}");
+                return false;
             }
 
             if (ack.type != "RegisterAck")
             {
-                Debug.LogError($"Relay connector sent an unexpected response to Register: {ack.type}");
-                return;
+                Debug.LogWarning($"Relay connector sent an unexpected response to Register: {ack.type}");
+                return false;
             }
 
+            registered = true;
             Debug.Log($"Registered with relay connector as '{serverName}' ({podIp}:{gamePort}).");
 
             while (!token.IsCancellationRequested)
@@ -144,6 +178,8 @@ public class RelayConnectorClient : MonoBehaviour
         {
             Debug.LogWarning($"Relay connector connection error: {e.Message}");
         }
+
+        return registered;
     }
 
     private static string GetEnv(string name, string fallback)
