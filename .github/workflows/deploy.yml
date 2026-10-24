@@ -4,13 +4,14 @@ on:
   push:
     branches:
       - dev
+  workflow_dispatch:   # "Run workflow" button: redeploy without pushing
 
 jobs:
   deploy:
     permissions:
       contents: read
       packages: write
-    uses: LogansOrganization/unity-k8s-pipeline/.github/workflows/deploy.yml@v1
+    uses: LogansOrganization/unity-k8s-pipeline/.github/workflows/deploy.yml@v1.1
     with:
       server_image_name: ghcr.io/logansorganization/unity-server
       k8s_namespace: default

@@ -16,7 +16,11 @@ public class ServerBrowserUI : MonoBehaviour
     private const float RefreshIntervalSeconds = 5f;
     private const float RowHeight = 40f;
 
-    [SerializeField] private string relayHttpBaseUrl = "http://192.168.10.228:8080";
+    // The relay's public server list. Launch with -relay http://host:8080 to use another one.
+    // Swap this for http://relay.<your domain>:8080 once there's a domain (home IPs change).
+    private const string DefaultRelayUrl = "http://50.27.160.4:8080";
+
+    [SerializeField] private string relayHttpBaseUrl = DefaultRelayUrl;
 
     private Action<string, ushort> onServerSelected;
     private ServerListClient listClient;
@@ -33,8 +37,27 @@ public class ServerBrowserUI : MonoBehaviour
 
     private void Awake()
     {
+        string relayArg = GetArg("-relay");
+        if (!string.IsNullOrEmpty(relayArg))
+        {
+            relayHttpBaseUrl = relayArg.TrimEnd('/');
+        }
+
         listClient = gameObject.AddComponent<ServerListClient>();
         BuildUI();
+    }
+
+    private static string GetArg(string name)
+    {
+        string[] args = Environment.GetCommandLineArgs();
+        for (int i = 0; i < args.Length - 1; i++)
+        {
+            if (args[i] == name)
+            {
+                return args[i + 1];
+            }
+        }
+        return null;
     }
 
     private void Start()
