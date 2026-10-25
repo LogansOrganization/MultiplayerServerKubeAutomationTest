@@ -54,9 +54,11 @@ spec:
                       key: secret
 
               resources:
+                # Measured Oct 2026: ~120 Mi and ~15m CPU per idle server. Requests are what
+                # the scheduler reserves; the limits below still allow bursts under load.
                 requests:
-                  cpu: "500m"
-                  memory: "512Mi"
+                  cpu: "100m"
+                  memory: "192Mi"
 
                 limits:
                   cpu: "2"
