@@ -18,6 +18,11 @@ public class RelayConnectorClient : MonoBehaviour
     private const byte KindControl = 0x01;
     private const int HeaderLength = 5;
     private const int HeartbeatIntervalSeconds = 10;
+    // Connectors that ack heartbeats (UnityK8Relay since Oct 2026): once one ack has arrived,
+    // this many heartbeats without one means the connector is gone. A deleted connector pod
+    // sends no TCP reset, so without this the writes would just queue for ~15 minutes.
+    private const int MissedAcksBeforeReconnect = 3;
+    private const int RegisterTimeoutSeconds = 10;
 
     private static RelayConnectorClient instance;
 
@@ -143,7 +148,12 @@ public class RelayConnectorClient : MonoBehaviour
             };
             await WriteFrameAsync(stream, Encoding.UTF8.GetBytes(JsonUtility.ToJson(register)), token).ConfigureAwait(false);
 
-            byte[] ackPayload = await ReadFramePayloadAsync(stream, token).ConfigureAwait(false);
+            Task<byte[]> ackRead = ReadFramePayloadAsync(stream, token);
+            if (await Task.WhenAny(ackRead, Task.Delay(RegisterTimeoutSeconds * 1000, token)).ConfigureAwait(false) != ackRead)
+            {
+                throw new TimeoutException($"Relay connector didn't answer Register within {RegisterTimeoutSeconds}s.");
+            }
+            byte[] ackPayload = await ackRead.ConfigureAwait(false);
             RelayResponse ack = JsonUtility.FromJson<RelayResponse>(Encoding.UTF8.GetString(ackPayload));
 
             // Retried by the caller: right after a reconnect the relay can still hold the old
@@ -163,9 +173,28 @@ public class RelayConnectorClient : MonoBehaviour
             registered = true;
             Debug.Log($"Registered with relay connector as '{serverName}' ({podIp}:{gamePort}).");
 
+            // Reads everything the connector sends from here on: heartbeat acks, and the end of
+            // the connection, which this notices straight away instead of at the next write.
+            AckClock acks = new AckClock();
+            NetworkStream readStream = stream;
+            Task reader = Task.Run(() => ReadAcksAsync(readStream, acks, token));
+            TimeSpan ackTimeout = TimeSpan.FromSeconds(HeartbeatIntervalSeconds * MissedAcksBeforeReconnect);
+
             while (!token.IsCancellationRequested)
             {
-                await Task.Delay(HeartbeatIntervalSeconds * 1000, token).ConfigureAwait(false);
+                Task delay = Task.Delay(HeartbeatIntervalSeconds * 1000, token);
+                if (await Task.WhenAny(delay, reader).ConfigureAwait(false) == reader)
+                {
+                    await reader.ConfigureAwait(false);   // rethrows why the read side ended
+                    throw new IOException("Relay connector closed the connection.");
+                }
+                await delay.ConfigureAwait(false);
+
+                if (acks.SilentFor(ackTimeout))
+                {
+                    throw new TimeoutException($"Relay connector stopped answering heartbeats for {ackTimeout.TotalSeconds:0}s.");
+                }
+
                 byte[] heartbeat = Encoding.UTF8.GetBytes(JsonUtility.ToJson(new TypeOnlyMessage { type = "Heartbeat" }));
                 await WriteFrameAsync(stream, heartbeat, token).ConfigureAwait(false);
             }
@@ -178,8 +207,56 @@ public class RelayConnectorClient : MonoBehaviour
         {
             Debug.LogWarning($"Relay connector connection error: {e.Message}");
         }
+        finally
+        {
+            // A dead connection is dropped here so its pending read ends too; on cancel,
+            // Deregister() owns the teardown.
+            if (!token.IsCancellationRequested)
+            {
+                client?.Close();
+            }
+        }
 
         return registered;
+    }
+
+    private static async Task ReadAcksAsync(NetworkStream source, AckClock acks, CancellationToken token)
+    {
+        while (!token.IsCancellationRequested)
+        {
+            byte[] payload = await ReadFramePayloadAsync(source, token).ConfigureAwait(false);
+            RelayResponse message = JsonUtility.FromJson<RelayResponse>(Encoding.UTF8.GetString(payload));
+            if (message != null && message.type == "HeartbeatAck")
+            {
+                acks.Seen();
+            }
+        }
+    }
+
+    // When the connector last acked a heartbeat. Before the first ack it never counts as silent,
+    // so this still works against connectors that don't ack.
+    private sealed class AckClock
+    {
+        private readonly object gate = new object();
+        private readonly System.Diagnostics.Stopwatch sinceLastAck = new System.Diagnostics.Stopwatch();
+        private bool anySeen;
+
+        public void Seen()
+        {
+            lock (gate)
+            {
+                anySeen = true;
+                sinceLastAck.Restart();
+            }
+        }
+
+        public bool SilentFor(TimeSpan limit)
+        {
+            lock (gate)
+            {
+                return anySeen && sinceLastAck.Elapsed > limit;
+            }
+        }
     }
 
     private static string GetEnv(string name, string fallback)
